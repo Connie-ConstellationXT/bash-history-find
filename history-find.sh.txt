@@ -1,0 +1,48 @@
+# Add this to your ~/.bashrc (or source it in the current shell)
+
+hfindf20() {
+  local _snap
+  _snap="$(mktemp -t hfind.XXXXXX)"
+  trap 'rm -f -- "$_snap"' RETURN
+
+  # snapshot: keep indices, newest first
+  history | grep -v '^#' | tac >"$_snap"
+
+  fzf --disabled --prompt='hfind> ' \
+      --layout=reverse --height=30 --border --no-clear --ansi \
+      --with-nth=2.. \
+      --bind "start:reload:
+        awk '
+          BEGIN {
+            IGNORECASE=1
+            q = ENVIRON[\"FZF_QUERY\"]
+            n = split(q, t, /[[:space:]]+/)
+          }
+          {
+            idx=\$1; \$1=\"\"; cmd=substr(\$0,2)
+            ok=1
+            for(i=1;i<=n;i++){
+              if(t[i] != \"\" && index(cmd, t[i]) == 0){ ok=0; break }
+            }
+            if(ok) printf \"%s  %s\n\", idx, cmd
+          }' \"$_snap\"
+      " \
+      --bind "change:reload:
+        awk '
+          BEGIN {
+            IGNORECASE=1
+            q = ENVIRON[\"FZF_QUERY\"]
+            n = split(q, t, /[[:space:]]+/)
+          }
+          {
+            idx=\$1; \$1=\"\"; cmd=substr(\$0,2)
+            ok=1
+            for(i=1;i<=n;i++){
+              if(t[i] != \"\" && index(cmd, t[i]) == 0){ ok=0; break }
+            }
+            if(ok) printf \"%s  %s\n\", idx, cmd
+          }' \"$_snap\"
+      " \
+      --preview 'echo {}' --preview-window=down,3,wrap
+}
+
