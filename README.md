@@ -8,12 +8,15 @@ It defines a shell function, `hfindf20`, that:
 - shows the newest entries first
 - filters commands by space-separated terms
 - previews the selected command while you search
+- copies the selected command to your clipboard
 
 ## Requirements
 
 - Bash
 - `fzf`
 - standard Unix tools: `awk`, `grep`, `mktemp`, `tac`
+- one clipboard utility: `wl-copy` (Wayland), `xclip` or `xsel` (X11), `pbcopy` (macOS), or `clip.exe` (WSL/Windows)
+- `tput` (optional, for cleaner terminal cursor positioning after search)
 
 ## Install
 
@@ -51,4 +54,5 @@ This matches history entries containing both `git` and `rebase`, in any position
 
 - Matching is case-insensitive.
 - History is snapshotted before search starts, so the list stays stable during a session.
-- The function displays results in `fzf` but does not currently execute or paste the selected command.
+- After selecting a command, it is printed to stdout and copied to your clipboard automatically.
+- If no supported clipboard utility is found, a warning is printed to stderr and the command is still printed to stdout.
