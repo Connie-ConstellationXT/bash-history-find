@@ -1,48 +1,86 @@
 # Add this to your ~/.bashrc (or source it in the current shell)
+copy_to_clipboard() {
+  echo "selected command: $1" >&2
+  if command -v wl-copy >/dev/null 2>&1; then
+    wl-copy
+  elif command -v xclip >/dev/null 2>&1; then
+    xclip -selection clipboard
+  elif command -v xsel >/dev/null 2>&1; then
+    xsel --clipboard --input
+  elif command -v pbcopy >/dev/null 2>&1; then
+    pbcopy
+  elif command -v clip.exe >/dev/null 2>&1; then
+    clip.exe
+  else
+    echo "No clipboard utility found. Please install wl-copy, xclip, xsel, pbcopy, or clip.exe." >&2
+    return 1
+  fi
+}
+
+move_below_ui() {
+  local _ui_height=${1:-30}
+
+  if command -v tput >/dev/null 2>&1; then
+    tput cr
+    tput cud "$_ui_height"
+    printf '\n'
+  else
+    printf '\n%.0s' $(seq 1 $((_ui_height + 1)))
+  fi
+}
 
 hfindf20() {
   local _snap
+  local _selected
+  local _cmd
+  local _ui_height=30
   _snap="$(mktemp -t hfind.XXXXXX)"
   trap 'rm -f -- "$_snap"' RETURN
 
   # snapshot: keep indices, newest first
   history | grep -v '^#' | tac >"$_snap"
 
-  fzf --disabled --prompt='hfind> ' \
-      --layout=reverse --height=30 --border --no-clear --ansi \
-      --with-nth=2.. \
-      --bind "start:reload:
-        awk '
-          BEGIN {
-            IGNORECASE=1
-            q = ENVIRON[\"FZF_QUERY\"]
-            n = split(q, t, /[[:space:]]+/)
-          }
-          {
-            idx=\$1; \$1=\"\"; cmd=substr(\$0,2)
-            ok=1
-            for(i=1;i<=n;i++){
-              if(t[i] != \"\" && index(cmd, t[i]) == 0){ ok=0; break }
+  _selected="$(
+    fzf --disabled --prompt='hfind> ' \
+        --layout=reverse --height="${_ui_height}" --border --no-clear --ansi \
+        --with-nth=2.. \
+        --bind "start:reload:
+          awk '
+            BEGIN {
+              IGNORECASE=1
+              q = ENVIRON[\"FZF_QUERY\"]
+              n = split(q, t, /[[:space:]]+/)
             }
-            if(ok) printf \"%s  %s\n\", idx, cmd
-          }' \"$_snap\"
-      " \
-      --bind "change:reload:
-        awk '
-          BEGIN {
-            IGNORECASE=1
-            q = ENVIRON[\"FZF_QUERY\"]
-            n = split(q, t, /[[:space:]]+/)
-          }
-          {
-            idx=\$1; \$1=\"\"; cmd=substr(\$0,2)
-            ok=1
-            for(i=1;i<=n;i++){
-              if(t[i] != \"\" && index(cmd, t[i]) == 0){ ok=0; break }
+            {
+              idx=\$1; \$1=\"\"; cmd=substr(\$0,2)
+              ok=1
+              for(i=1;i<=n;i++){
+                if(t[i] != \"\" && index(cmd, t[i]) == 0){ ok=0; break }
+              }
+              if(ok) printf \"%s  %s\n\", idx, cmd
+            }' \"$_snap\"
+        " \
+        --bind "change:reload:
+          awk '
+            BEGIN {
+              IGNORECASE=1
+              q = ENVIRON[\"FZF_QUERY\"]
+              n = split(q, t, /[[:space:]]+/)
             }
-            if(ok) printf \"%s  %s\n\", idx, cmd
-          }' \"$_snap\"
-      " \
-      --preview 'echo {}' --preview-window=down,3,wrap
-}
+            {
+              idx=\$1; \$1=\"\"; cmd=substr(\$0,2)
+              ok=1
+              for(i=1;i<=n;i++){
+                if(t[i] != \"\" && index(cmd, t[i]) == 0){ ok=0; break }
+              }
+              if(ok) printf \"%s  %s\n\", idx, cmd
+            }' \"$_snap\"
+        " \
+        --preview 'echo {}' --preview-window=down,3,wrap
+  )" || return
 
+  move_below_ui "$_ui_height"
+  _cmd=${_selected#*  }
+  copy_to_clipboard "$_cmd" <<<"$_cmd" >/dev/null || true
+  printf '%s\n' "$_cmd"
+}
