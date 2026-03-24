@@ -32,6 +32,13 @@ Or source the file directly from your shell startup config:
 source /path/to/history-find/history-find.sh.txt
 ```
 
+If you use Nix, you can enter a ready-made shell with the needed tools:
+
+```bash
+nix-shell
+source ./history-find.sh.txt
+```
+
 ## Usage
 
 Run:
